@@ -2,13 +2,13 @@
 
 /* global describe, it */
 
-var should = require('should')
-var sizeof = require('../index')
+const should = require('should')
+const sizeof = require('../index')
 const Buffer = require('buffer/').Buffer
 
 describe('sizeof', function () {
   it('should handle null in object keys', function () {
-    var badData = { 1: { depot_id: null, hierarchy_node_id: null } }
+    const badData = { 1: { depot_id: null, hierarchy_node_id: null } }
     sizeof(badData).should.be.instanceOf(Number)
   })
 
@@ -42,24 +42,26 @@ describe('sizeof', function () {
 
   it('nested objects shall be counted in full', function () {
     // 4 one two-bytes char strings and 3 eighth-bytes numbers
-    var param = { a: 1, b: 2, c: { d: 4 } }
+    const param = { a: 1, b: 2, c: { d: 4 } }
     sizeof(param).should.be.equal(4 * 2 + 3 * 8)
   })
 
   it('object with 100 three-chars keys and values as numbers => 100 * 2 * 3 + 100 * 8', function () {
-    var obj = {}
-    var ELEMENTS = 100
+    const obj = {}
+    const ELEMENTS = 100
     // start from 1M to have the same keys length
-    for (var i = 100; i < 100 + ELEMENTS; i++) {
+    for (let i = 100; i < 100 + ELEMENTS; i++) {
       obj[i] = i
     }
 
-    sizeof(obj).should.be.equal(ELEMENTS * 2 * (('' + ELEMENTS).length) + ELEMENTS * 8)
+    sizeof(obj).should.be.equal(
+      ELEMENTS * 2 * ('' + ELEMENTS).length + ELEMENTS * 8
+    )
   })
 
   it('report an error for circular dependency objects', function () {
-    var firstLevel = { a: 1 }
-    var secondLevel = { b: 2, c: firstLevel }
+    const firstLevel = { a: 1 }
+    const secondLevel = { b: 2, c: firstLevel }
     firstLevel.second = secondLevel
     should.exist(sizeof(firstLevel))
   })
@@ -91,7 +93,9 @@ describe('sizeof', function () {
     const descriptor = 'abcd'
     const symbol = Symbol(descriptor)
     const value = 'efg'
-    sizeof({ [symbol]: value }).should.equal(2 * descriptor.length + 2 * value.length)
+    sizeof({ [symbol]: value }).should.equal(
+      2 * descriptor.length + 2 * value.length
+    )
   })
 
   it('supports nested symbols as keys', () => {
@@ -123,7 +127,33 @@ describe('sizeof', function () {
 
   it('supports global symbols', () => {
     const globalSymbol = Symbol.for('a')
-    const obj = { [globalSymbol]: 'b'}
+    const obj = { [globalSymbol]: 'b' }
     sizeof(obj).should.equal(4)
   })
+
+  it('throw an error if timeout is exceeded', () => {
+    const deeplyNestedObject = createDeeplyNestedObject()
+    should.throws(
+      () => sizeof(deeplyNestedObject, { timeout: 1 }),
+      /Timeout reached/
+    )
+  })
+
+  it('does no throw an error if timeout is not exceeded', () => {
+    const deeplyNestedObject = createDeeplyNestedObject()
+    should.doesNotThrow(
+      () => sizeof(deeplyNestedObject, { timeout: 10000 }),
+      /Timeout reached/
+    )
+  })
 })
+
+function createDeeplyNestedObject (level = 1000) {
+  const object = {}
+  let current = object
+  for (let i = 0; i < level; i++) {
+    current.object = {}
+    current = current.object
+  }
+  return object
+}
